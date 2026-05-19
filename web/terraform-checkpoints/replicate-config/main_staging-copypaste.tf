@@ -187,29 +187,14 @@ resource "google_project_service" "storage_staging" {
   disable_on_destroy = false
 }
 
-# Provision a Cloud Storage bucket.
-# This is not the default Cloud Storage bucket for your project
-# (provisioning of the default bucket via Terraform is coming soon)
-resource "google_storage_bucket" "my_bucket_staging" {
+# Provision a default Firebase Storage bucket.
+resource "google_firebase_storage_default_bucket" "bucket_staging" {
   provider = google-beta
-  project  = google_firebase_project.default.project
-
-  name     = "<NAME_OF_STORAGE_BUCKET>"
+  project  = google_firebase_project.staging.project
   # See available locations: https://cloud.google.com/storage/docs/locations#available-locations
   location = "<NAME_OF_DESIRED_REGION_FOR_BUCKET>"
-  force_destroy = true
-}
 
-# Make the Storage bucket accessible for Firebase SDKs, authentication, and Firebase Security Rules.
-resource "google_firebase_storage_bucket" "my_bucket_staging" {
-  provider = google-beta
-
-  project   = google_firebase_project.staging.project
-  bucket_id = google_storage_bucket.my_bucket_staging.name
-
-  depends_on = [
-    google_project_service.storage_staging
-  ]
+  depends_on = [google_project_service.storage_staging]
 }
 
 # Create a ruleset of Cloud Storage Security Rules from a local file.
@@ -228,15 +213,15 @@ resource "google_firebaserules_ruleset" "storage_staging" {
 
   # Wait for the Storage bucket to be provisioned before creating this ruleset.
   depends_on = [
-    google_firebase_storage_bucket.my_bucket_staging,
+    google_firebase_storage_default_bucket.bucket_staging,
   ]
 }
 
 # Release the ruleset to the Storage bucket.
-resource "google_firebaserules_release" "my_bucket_staging" {
+resource "google_firebaserules_release" "bucket_staging" {
   provider = google-beta
 
-  name         = "firebase.storage/${google_firebase_storage_bucket.my_bucket_staging.bucket_id}"
+  name         = "firebase.storage/${google_firebase_storage_default_bucket.bucket_staging.project}.firebasestorage.app"
   ruleset_name = google_firebaserules_ruleset.storage_staging.name
   project      = google_firebase_project.staging.project
 }
